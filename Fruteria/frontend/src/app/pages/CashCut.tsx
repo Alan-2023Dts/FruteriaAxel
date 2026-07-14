@@ -12,10 +12,10 @@ import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
-/* ─── Constantes de sesión simulada ───────────────────────────────── */
-const SESSION_SALES  = 4250.00;  // ventas del turno
+import { useFruteria } from '../stores/FruteriaProvider';
+
+/* ─── Fondo de cambio simulado ─────────────────────────────────── */
 const FONDO_CAMBIO   = 500.00;   // fondo de cambio que queda en caja
-const SALDO_TOTAL    = SESSION_SALES + FONDO_CAMBIO; // lo que hay físicamente
 
 /* ─── Denominaciones MXN ─────────────────────────────────────────── */
 const DENOMINATIONS = [
@@ -35,11 +35,16 @@ type Step = 'count' | 'confirm' | 'done';
 
 export const CashCut = () => {
   const navigate = useNavigate();
+  const { tickets } = useFruteria();
   const [step, setStep] = useState<Step>('count');
   const [counts, setCounts] = useState<Record<number, string>>(
     Object.fromEntries(DENOMINATIONS.map(d => [d.value, '']))
   );
   const [processing, setProcessing] = useState(false);
+
+  // Sum up all tickets sold to compute the actual session sales
+  const sessionSales = tickets.reduce((acc, ticket) => acc + ticket.total, 0);
+  const saldoTotal = sessionSales + FONDO_CAMBIO;
 
   /* Suma física contada */
   const physicalTotal = DENOMINATIONS.reduce((acc, d) => {
@@ -50,7 +55,7 @@ export const CashCut = () => {
   /* Monto a entregar (no puede ser negativo) */
   const cutAmount   = Math.max(0, physicalTotal - FONDO_CAMBIO);
   /* Diferencia respecto al sistema */
-  const difference  = physicalTotal - SALDO_TOTAL;
+  const difference  = physicalTotal - saldoTotal;
   const isShort     = difference < 0;
   const hasError    = physicalTotal < FONDO_CAMBIO;
 
@@ -112,9 +117,9 @@ export const CashCut = () => {
           >
             <div className="absolute right-0 top-0 w-28 h-28 bg-white/5 rounded-full -mr-10 -mt-10" />
             <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-1">Saldo del Sistema</p>
-            <h2 className="text-4xl font-black mb-1">${SALDO_TOTAL.toFixed(2)}</h2>
+            <h2 className="text-4xl font-black mb-1">${saldoTotal.toFixed(2)}</h2>
             <div className="flex gap-4 text-white/60 text-xs mt-2">
-              <span>Ventas: <strong className="text-white">${SESSION_SALES.toFixed(2)}</strong></span>
+              <span>Ventas: <strong className="text-white">${sessionSales.toFixed(2)}</strong></span>
               <span>Fondo: <strong className="text-white">${FONDO_CAMBIO.toFixed(2)}</strong></span>
             </div>
           </motion.div>
@@ -231,7 +236,7 @@ export const CashCut = () => {
             <h2 className="text-base font-bold text-[#1A1C1E]">Resumen del Corte</h2>
 
             {[
-              { label: 'Saldo del sistema',  value: `$${SALDO_TOTAL.toFixed(2)}`,    bold: false },
+              { label: 'Saldo del sistema',  value: `$${saldoTotal.toFixed(2)}`,    bold: false },
               { label: 'Total contado',       value: `$${physicalTotal.toFixed(2)}`,  bold: false },
               { label: 'Fondo de cambio',     value: `$${FONDO_CAMBIO.toFixed(2)}`,   bold: false },
             ].map(row => (

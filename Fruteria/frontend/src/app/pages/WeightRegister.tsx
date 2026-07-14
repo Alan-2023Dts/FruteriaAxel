@@ -9,7 +9,7 @@ import {
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { PRODUCTS } from './Sales';
+import { useFruteria } from '../stores/FruteriaProvider';
 
 interface PriceEntry {
   id: number;
@@ -23,16 +23,17 @@ interface PriceEntry {
 
 export const WeightRegister = () => {
   const navigate = useNavigate();
+  const { products, updateProductPrice } = useFruteria();
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [entries, setEntries] = useState<PriceEntry[]>(
-    PRODUCTS.map(p => ({
+  const [entries, setEntries] = useState<PriceEntry[]>(() =>
+    products.map(p => ({
       id: p.id,
       name: p.name,
       category: p.category,
       unit: p.unit,
-      image: p.image as string,
+      image: p.image,
       currentPrice: p.price,
       newPrice: '',
     }))
@@ -85,6 +86,13 @@ export const WeightRegister = () => {
     }
     setSaving(true);
     setTimeout(() => {
+      // Save changes to the global store
+      entries.forEach(e => {
+        if (e.newPrice !== '') {
+          updateProductPrice(e.id, parseFloat(e.newPrice));
+        }
+      });
+
       setEntries(prev =>
         prev.map(e =>
           e.newPrice !== ''

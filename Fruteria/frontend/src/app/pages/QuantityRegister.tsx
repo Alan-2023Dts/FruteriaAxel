@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useFruteria } from '../stores/FruteriaProvider';
 
 interface ProductCount {
   id: string;
@@ -21,23 +22,23 @@ interface ProductCount {
   image: string;
 }
 
-const INITIAL_PRODUCTS: ProductCount[] = [
-  { id: '1',  name: 'Manzana Roja',    category: 'Fruta',    unit: 'kg',  currentStock: 24,  newCount: '', image: 'https://images.unsplash.com/photo-1630563451961-ac2ff27616ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '2',  name: 'Plátano Tabasco', category: 'Fruta',    unit: 'kg',  currentStock: 15,  newCount: '', image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '3',  name: 'Naranja Valencia',category: 'Cítrico',  unit: 'kg',  currentStock: 42,  newCount: '', image: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '4',  name: 'Sandía',          category: 'Fruta',    unit: 'kg',  currentStock: 30,  newCount: '', image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '5',  name: 'Aguacate Hass',   category: 'Verdura',  unit: 'kg',  currentStock: 0,   newCount: '', image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '6',  name: 'Jitomate Bola',   category: 'Verdura',  unit: 'kg',  currentStock: 18,  newCount: '', image: 'https://images.unsplash.com/photo-1582284540020-8acbe03f4924?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '7',  name: 'Limón Colima',    category: 'Cítrico',  unit: 'kg',  currentStock: 22,  newCount: '', image: 'https://images.unsplash.com/photo-1590502593747-42a996133562?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '8',  name: 'Zanahoria',       category: 'Verdura',  unit: 'kg',  currentStock: 10,  newCount: '', image: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '9',  name: 'Papa Blanca',     category: 'Verdura',  unit: 'kg',  currentStock: 35,  newCount: '', image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '10', name: 'Fresa',           category: 'Temporada',unit: 'kg',  currentStock: 8,   newCount: '', image: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-];
-
 export const QuantityRegister = () => {
   const navigate = useNavigate();
+  const { products: contextProducts, updateProductStock } = useFruteria();
   const [search, setSearch] = useState('');
-  const [products, setProducts] = useState<ProductCount[]>(INITIAL_PRODUCTS);
+  
+  const [products, setProducts] = useState<ProductCount[]>(() =>
+    contextProducts.map(p => ({
+      id: String(p.id),
+      name: p.name,
+      category: p.category,
+      unit: p.unit,
+      currentStock: p.stock,
+      newCount: '',
+      image: p.image,
+    }))
+  );
+
   const [saving, setSaving] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
@@ -71,6 +72,13 @@ export const QuantityRegister = () => {
     }
     setSaving(true);
     setTimeout(() => {
+      // Save changes to global store
+      products.forEach(p => {
+        if (p.newCount !== '') {
+          updateProductStock(Number(p.id), Number(p.newCount));
+        }
+      });
+
       const ids = new Set(products.filter(p => p.newCount !== '').map(p => p.id));
       setSavedIds(ids);
       setProducts(prev =>

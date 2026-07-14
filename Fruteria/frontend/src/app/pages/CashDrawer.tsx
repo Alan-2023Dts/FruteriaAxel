@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Plus,
@@ -27,15 +27,14 @@ interface Transaction {
   amount: number;
 }
 
+import { useFruteria } from '../stores/FruteriaProvider';
+
 /* ─── Datos iniciales simulados ──────────────────────────────────── */
 const STARTING_BALANCE = 500.00;
-const NET_SALES        = 745.50;
 
-const INITIAL_TXS: Transaction[] = [
-  { id: 't4', type: 'venta',   title: 'Venta #1042', time: '11:15 AM', note: '', amount:  125.00 },
+const INITIAL_ADJUSTMENTS: Transaction[] = [
   { id: 't3', type: 'retiro',  title: 'Retiro Manual', time: '08:30 AM', note: 'Cambio para repartidor', amount: -50.00 },
   { id: 't2', type: 'entrada', title: 'Entrada Manual', time: '08:05 AM', note: 'Reposición de fondo inicial', amount: 100.00 },
-  { id: 't1', type: 'venta',   title: 'Venta #1041', time: '08:02 AM', note: '', amount:   20.50 },
 ];
 
 /* ─── Utilidades ─────────────────────────────────────────────────── */
@@ -50,7 +49,8 @@ type ModalType = 'entrada' | 'retiro' | null;
 /* ─── Componente principal ───────────────────────────────────────── */
 export const CashDrawer = () => {
   const navigate = useNavigate();
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TXS);
+  const { tickets } = useFruteria();
+  const [adjustments, setAdjustments] = useState<Transaction[]>(INITIAL_ADJUSTMENTS);
   const [showAll, setShowAll] = useState(false);
   const [modal, setModal] = useState<ModalType>(null);
   const [amount, setAmount] = useState('');
@@ -58,11 +58,36 @@ export const CashDrawer = () => {
   const [saving, setSaving] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
-  /* Saldo actual dinámico */
-  const currentBalance = transactions.reduce(
-    (acc, tx) => acc + tx.amount,
-    STARTING_BALANCE
-  );
+  // Combine manual adjustments and tickets (formatted as transactions)
+  const transactions = useMemo(() => {
+    const ticketTxs: Transaction[] = tickets.map(ticket => ({
+      id: `ticket-${ticket.id}`,
+      type: 'venta',
+      title: `Venta ${ticket.id}`,
+      time: ticket.ago,
+      note: ticket.method,
+      amount: ticket.total,
+    }));
+    return [...adjustments, ...ticketTxs];
+  }, [tickets, adjustments]);
+
+  // Net sales of the turn (all registered ticket totals)
+  const netSales = useMemo(() => {
+    return tickets.reduce((acc, t) => acc + t.total, 0);
+  }, [tickets]);
+
+  // Cash sales of the turn (tickets paid in cash)
+  const cashSales = useMemo(() => {
+    return tickets
+      .filter(t => t.method === 'Efectivo')
+      .reduce((acc, t) => acc + t.total, 0);
+  }, [tickets]);
+
+  // Dynamic physical cash in drawer: starting balance + cash tickets + adjustments
+  const currentBalance = useMemo(() => {
+    const adjustmentsSum = adjustments.reduce((acc, adj) => acc + adj.amount, 0);
+    return STARTING_BALANCE + cashSales + adjustmentsSum;
+  }, [cashSales, adjustments]);
 
   const visibleTxs = showAll ? transactions : transactions.slice(0, 4);
 
@@ -101,7 +126,7 @@ export const CashDrawer = () => {
         note: note.trim(),
         amount: modal === 'entrada' ? num : -num,
       };
-      setTransactions(prev => [newTx, ...prev]);
+      setAdjustments(prev => [newTx, ...prev]);
       setSaving(false);
       closeModal();
       toast.success(
@@ -183,7 +208,7 @@ export const CashDrawer = () => {
           </div>
           <div className="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Ventas Netas</p>
-            <p className="text-xl font-black text-green-600">+${NET_SALES.toFixed(2)}</p>
+            <p className="text-xl font-black text-green-600">+${netSales.toFixed(2)}</p>
           </div>
         </motion.div>
 
@@ -415,7 +440,7 @@ export const CashDrawer = () => {
               <div className="space-y-1 mb-5">
                 {[
                   { label: 'Saldo inicial',            value: `$${STARTING_BALANCE.toFixed(2)}`,  color: 'text-[#1A1C1E]' },
-                  { label: 'Ventas netas en efectivo', value: `+$${NET_SALES.toFixed(2)}`,        color: 'text-green-600'  },
+                  { label: 'Ventas netas en efectivo', value: `+$${cashSales.toFixed(2)}`,        color: 'text-green-600'  },
                   { label: 'Entradas manuales',
                     value: `+$${transactions.filter(t=>t.type==='entrada').reduce((a,t)=>a+t.amount,0).toFixed(2)}`,
                     color: 'text-blue-600' },

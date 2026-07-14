@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { CATEGORIES } from '../services/catalog';
 import { useFruteria } from '../stores/FruteriaProvider';
-import type { PaymentMethod, SaleCartItem } from '../types/fruteria';
+import type { PaymentMethod, SaleCartItem, Product } from '../types/fruteria';
 
 type CatalogStep = 'catalog' | 'checkout' | 'success';
 
@@ -42,28 +42,98 @@ function CatalogView({ onBack }: { onBack: () => void }) {
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const INCREMENT = 0.5;
+  const [weighingProduct, setWeighingProduct] = useState<Product | null>(null);
+  const [manualWeight, setManualWeight] = useState('');
 
-  const addToCart = (id: number) => {
-    const available = products.find(product => product.id === id)?.stock ?? 0;
+  const closeWeighingModal = () => {
+    setWeighingProduct(null);
+    setManualWeight('');
+  };
+
+  const submitManualWeight = () => {
+    if (!weighingProduct) return;
+    const weight = parseFloat(manualWeight);
+    if (isNaN(weight) || weight <= 0) {
+      toast.error('Ingresa un peso válido');
+      return;
+    }
+    if (weight > weighingProduct.stock) {
+      toast.error(`Stock insuficiente (${weighingProduct.stock} kg disponibles)`);
+      return;
+    }
+
+    setCart(prev => {
+      const ex = prev.find(i => i.id === weighingProduct.id);
+      if (ex) {
+        return prev.map(i => i.id === weighingProduct.id ? { ...i, quantity: +weight.toFixed(3) } : i);
+      } else {
+        return [...prev, { id: weighingProduct.id, quantity: +weight.toFixed(3) }];
+      }
+    });
+
+    toast.success(`Peso de "${weighingProduct.name}" registrado: ${weight} kg`);
+    closeWeighingModal();
+  };
+
+  const addStandardToCart = (id: number, quantityToAdd: number) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    const available = product.stock;
     const inCart = cart.find(i => i.id === id)?.quantity ?? 0;
-    if (inCart + INCREMENT > available) {
+    
+    if (inCart + quantityToAdd > available) {
       toast.error('Stock insuficiente para agregar más unidades');
       return;
     }
+    
     setCart(prev => {
       const ex = prev.find(i => i.id === id);
       return ex
-        ? prev.map(i => i.id === id ? { ...i, quantity: +(i.quantity + INCREMENT).toFixed(1) } : i)
-        : [...prev, { id, quantity: 1 }];
+        ? prev.map(i => i.id === id ? { ...i, quantity: +(i.quantity + quantityToAdd).toFixed(2) } : i)
+        : [...prev, { id, quantity: quantityToAdd }];
     });
   };
 
+  const handleProductClick = (product: Product) => {
+    if (product.unit.toLowerCase() === 'kg') {
+      setWeighingProduct(product);
+      const inCart = cart.find(c => c.id === product.id);
+      setManualWeight(inCart ? String(inCart.quantity) : '');
+    } else {
+      addStandardToCart(product.id, 1);
+    }
+  };
+
+  const addToCart = (id: number) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    if (product.unit.toLowerCase() === 'kg') {
+      setWeighingProduct(product);
+      const inCart = cart.find(c => c.id === product.id);
+      setManualWeight(inCart ? String(inCart.quantity) : '');
+    } else {
+      addStandardToCart(id, 1);
+    }
+  };
+
   const decreaseCart = (id: number) => {
-    setCart(prev =>
-      prev.map(i => i.id === id ? { ...i, quantity: +(i.quantity - INCREMENT).toFixed(1) } : i)
-        .filter(i => i.quantity > 0)
-    );
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    if (product.unit.toLowerCase() === 'kg') {
+      const inCart = cart.find(i => i.id === id);
+      if (inCart && inCart.quantity <= 0.1) {
+        removeFromCart(id);
+      } else {
+        setCart(prev =>
+          prev.map(i => i.id === id ? { ...i, quantity: +(i.quantity - 0.1).toFixed(2) } : i)
+        );
+      }
+    } else {
+      setCart(prev =>
+        prev.map(i => i.id === id ? { ...i, quantity: i.quantity - 1 } : i)
+          .filter(i => i.quantity > 0)
+      );
+    }
   };
 
   const removeFromCart = (id: number) => setCart(prev => prev.filter(i => i.id !== id));
@@ -187,9 +257,19 @@ function CatalogView({ onBack }: { onBack: () => void }) {
                       >
                         <Minus className="w-3 h-3 text-gray-600" />
                       </button>
-                      <span className="text-sm font-black text-[#1A1C1E] min-w-[36px] text-center">
+                      <button
+                        onClick={() => {
+                          if (p.unit.toLowerCase() === 'kg') {
+                            setWeighingProduct(p);
+                            setManualWeight(String(item.quantity));
+                          }
+                        }}
+                        className={`text-sm font-black text-[#1A1C1E] min-w-[36px] text-center rounded px-1.5 py-0.5 hover:bg-gray-100/80 active:scale-95 transition-all ${
+                          p.unit.toLowerCase() === 'kg' ? 'cursor-pointer hover:text-[#002B7F]' : 'cursor-default'
+                        }`}
+                      >
                         {item.quantity} {p.unit}
-                      </span>
+                      </button>
                       <button
                         onClick={() => addToCart(item.id)}
                         disabled={item.quantity >= available}
@@ -370,7 +450,7 @@ function CatalogView({ onBack }: { onBack: () => void }) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                onClick={() => !isOut && addToCart(product.id)}
+                onClick={() => !isOut && handleProductClick(product)}
                 className={`bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 flex flex-col transition-transform ${
                   isOut ? 'opacity-50' : 'active:scale-[0.98]'
                 }`}
@@ -456,6 +536,109 @@ function CatalogView({ onBack }: { onBack: () => void }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Modal de Pesaje Manual ── */}
+      <AnimatePresence>
+        {weighingProduct && (
+          <div className="absolute inset-0 z-50 flex items-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeWeighingModal}
+              className="absolute inset-0 bg-[#001540]/50 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="relative w-full bg-white rounded-t-[32px] p-6 shadow-2xl z-50"
+            >
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
+                    <Scale className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#1A1C1E]">
+                      Pesaje de Producto
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      {weighingProduct.name} · Precio: ${weighingProduct.price.toFixed(2)}/{weighingProduct.unit}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeWeighingModal}
+                  className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1 mb-1.5 block">
+                    Peso de Báscula (kg)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.005"
+                      placeholder="0.000"
+                      value={manualWeight}
+                      onChange={e => setManualWeight(e.target.value)}
+                      autoFocus
+                      className="w-full bg-[#F8F9FE] border border-gray-100 rounded-[18px] py-4 px-4 font-bold text-2xl focus:outline-none focus:ring-2 focus:ring-[#001540]/10 transition-all text-center"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">kg</span>
+                  </div>
+                  {parseFloat(manualWeight) > weighingProduct.stock && (
+                    <p className="text-xs text-red-500 font-bold ml-1 mt-1">
+                      El peso ingresado excede el stock disponible ({weighingProduct.stock} kg)
+                    </p>
+                  )}
+                </div>
+
+                {/* Subtotal preview */}
+                {parseFloat(manualWeight) > 0 && (
+                  <div className="bg-purple-50/50 rounded-2xl p-4 flex justify-between items-center border border-purple-100/50">
+                    <span className="text-sm text-purple-700 font-medium">Subtotal calculado</span>
+                    <span className="text-xl font-black text-purple-700">
+                      ${(weighingProduct.price * parseFloat(manualWeight)).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={closeWeighingModal}
+                  className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-[20px] font-bold text-sm active:scale-95 transition-transform"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={submitManualWeight}
+                  disabled={!manualWeight || parseFloat(manualWeight) <= 0 || parseFloat(manualWeight) > weighingProduct.stock}
+                  className={`flex-1 py-4 rounded-[20px] font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all ${
+                    manualWeight && parseFloat(manualWeight) > 0 && parseFloat(manualWeight) <= weighingProduct.stock
+                      ? 'bg-[#002B7F] text-white shadow-blue-900/20'
+                      : 'bg-gray-200 text-gray-400'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Agregar al Carrito
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -468,6 +651,7 @@ export const Sales = () => {
   const { tickets } = useFruteria();
 
   const visibleTickets = showAllTickets ? tickets : tickets.slice(0, 3);
+  const currentSalesTotal = tickets.reduce((acc, t) => acc + t.total, 0);
 
   if (view === 'catalog') {
     return <CatalogView onBack={() => setView('panel')} />;
@@ -490,7 +674,7 @@ export const Sales = () => {
             <span className="text-green-400 text-[10px] font-black uppercase tracking-widest">Caja Abierta</span>
           </div>
           <div className="flex items-baseline gap-2 mb-1">
-            <h2 className="text-4xl font-black text-white">$0.00</h2>
+            <h2 className="text-4xl font-black text-white">${currentSalesTotal.toFixed(2)}</h2>
             <span className="text-white/50 text-sm font-bold">MXN</span>
           </div>
           <p className="text-white/40 text-xs font-medium">Venta Actual de Turno</p>
