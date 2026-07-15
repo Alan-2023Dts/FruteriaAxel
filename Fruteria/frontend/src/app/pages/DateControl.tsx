@@ -59,16 +59,7 @@ function offsetDate(days: number) {
   return d.toISOString().split('T')[0];
 }
 
-const INITIAL_PRODUCTS: ProductDate[] = [
-  { id: '1',  name: 'Manzana Roja',    category: 'Fruta',    unit: 'kg',  entryDate: offsetDate(-3),  expiryDate: offsetDate(11), image: 'https://images.unsplash.com/photo-1630563451961-ac2ff27616ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '2',  name: 'Plátano Tabasco', category: 'Fruta',    unit: 'kg',  entryDate: offsetDate(-5),  expiryDate: offsetDate(2),  image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '3',  name: 'Naranja Valencia',category: 'Cítrico',  unit: 'kg',  entryDate: offsetDate(-1),  expiryDate: offsetDate(14), image: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '4',  name: 'Brócoli Fresco',  category: 'Verdura',  unit: 'kg',  entryDate: offsetDate(-2),  expiryDate: offsetDate(-1), image: 'https://images.unsplash.com/photo-1685504445355-0e7bdf90d415?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '5',  name: 'Aguacate Hass',   category: 'Verdura',  unit: 'kg',  entryDate: offsetDate(-1),  expiryDate: offsetDate(3),  image: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '6',  name: 'Fresa',           category: 'Temporada',unit: 'kg',  entryDate: TODAY,           expiryDate: offsetDate(4),  image: 'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '7',  name: 'Jitomate Bola',   category: 'Verdura',  unit: 'kg',  entryDate: offsetDate(-4),  expiryDate: offsetDate(-2), image: 'https://images.unsplash.com/photo-1582284540020-8acbe03f4924?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-  { id: '8',  name: 'Limón Colima',    category: 'Cítrico',  unit: 'kg',  entryDate: offsetDate(-6),  expiryDate: offsetDate(20), image: 'https://images.unsplash.com/photo-1590502593747-42a996133562?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200' },
-];
+import { useFruteria } from '../stores/FruteriaProvider';
 
 const STATUS_CONFIG = {
   ok:      { label: 'Vigente',   bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-100', dot: 'bg-green-500',  icon: CheckCircle2 },
@@ -81,9 +72,45 @@ const FILTERS: FilterKey[] = ['Todos', 'Vigente', 'Por vencer', 'Vencido'];
 
 export const DateControl = () => {
   const navigate = useNavigate();
+  const { products: contextProducts, updateProductDates } = useFruteria();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('Todos');
-  const [products, setProducts] = useState<ProductDate[]>(INITIAL_PRODUCTS);
+
+  // Fallback initial dates logic if missing in global store
+  const getInitialEntryDate = (name: string, index: number) => {
+    if (name.includes('Plátano')) return offsetDate(-5);
+    if (name.includes('Naranja')) return offsetDate(-1);
+    if (name.includes('Brócoli')) return offsetDate(-2);
+    if (name.includes('Aguacate')) return offsetDate(-1);
+    if (name.includes('Fresa')) return TODAY;
+    if (name.includes('Jitomate')) return offsetDate(-4);
+    if (name.includes('Limón')) return offsetDate(-6);
+    return offsetDate(-3);
+  };
+
+  const getInitialExpiryDate = (name: string, index: number) => {
+    if (name.includes('Plátano')) return offsetDate(2);
+    if (name.includes('Naranja')) return offsetDate(14);
+    if (name.includes('Brócoli')) return offsetDate(-1);
+    if (name.includes('Aguacate')) return offsetDate(3);
+    if (name.includes('Fresa')) return offsetDate(4);
+    if (name.includes('Jitomate')) return offsetDate(-2);
+    if (name.includes('Limón')) return offsetDate(20);
+    return offsetDate(11);
+  };
+
+  const [products, setProducts] = useState<ProductDate[]>(() =>
+    contextProducts.map((p, idx) => ({
+      id: String(p.id),
+      name: p.name,
+      category: p.category,
+      unit: p.unit,
+      image: p.image,
+      entryDate: p.entryDate || getInitialEntryDate(p.name, idx),
+      expiryDate: p.expiryDate || getInitialExpiryDate(p.name, idx),
+    }))
+  );
+
   const [editing, setEditing] = useState<ProductDate | null>(null);
   const [draft, setDraft] = useState({ entryDate: '', expiryDate: '' });
   const [saving, setSaving] = useState(false);
@@ -124,6 +151,9 @@ export const DateControl = () => {
     }
     setSaving(true);
     setTimeout(() => {
+      // Save globally
+      updateProductDates(Number(editing.id), draft.entryDate, draft.expiryDate);
+
       setProducts(prev =>
         prev.map(p =>
           p.id === editing.id

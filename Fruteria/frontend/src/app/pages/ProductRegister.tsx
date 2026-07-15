@@ -12,9 +12,22 @@ import {
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { useFruteria } from '../stores/FruteriaProvider';
+import type { ProductCategory } from '../types/fruteria';
+
+const CATEGORY_IMAGES: Record<ProductCategory, string> = {
+  Frutas: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Verduras: 'https://images.unsplash.com/photo-1597362925123-77861d3fbac7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Cítricos: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Temporada: 'https://images.unsplash.com/photo-1610397613657-3b853a79d345?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Abarrotes: 'https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Lácteos: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+  Otros: 'https://images.unsplash.com/photo-1542838132-92c53300491e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+};
 
 export const ProductRegister = () => {
   const navigate = useNavigate();
+  const { addProduct } = useFruteria();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -26,8 +39,8 @@ export const ProductRegister = () => {
     description: ''
   });
 
-  const categories = ['Frutas', 'Verduras', 'Abarrotes', 'Lácteos', 'Otros'];
-  const units = ['kg', 'pieza', 'manojo', 'litro', 'paquete'];
+  const categories: ProductCategory[] = ['Frutas', 'Verduras', 'Cítricos', 'Temporada', 'Abarrotes', 'Lácteos', 'Otros'];
+  const units = ['kg', 'pza', 'manojo', 'litro', 'paquete'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +50,17 @@ export const ProductRegister = () => {
     }
 
     setLoading(true);
-    // Simulate API call
     setTimeout(() => {
+      const selectedCategory = formData.category as ProductCategory;
+      addProduct({
+        name: formData.name,
+        category: selectedCategory,
+        price: parseFloat(formData.price),
+        unit: formData.unit,
+        stock: parseFloat(formData.stock),
+        image: CATEGORY_IMAGES[selectedCategory] || CATEGORY_IMAGES.Otros,
+      });
+
       setLoading(false);
       toast.success('Producto registrado correctamente');
       navigate('/admin');

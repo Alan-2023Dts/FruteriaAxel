@@ -1,4 +1,4 @@
-export type ProductCategory = 'Frutas' | 'Verduras' | 'Cítricos' | 'Temporada';
+export type ProductCategory = 'Frutas' | 'Verduras' | 'Cítricos' | 'Temporada' | 'Abarrotes' | 'Lácteos' | 'Otros';
 
 export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia';
 
@@ -10,6 +10,8 @@ export interface Product {
   stock: number;
   category: ProductCategory;
   image: string;
+  entryDate?: string;
+  expiryDate?: string;
 }
 
 export interface SaleCartItem {

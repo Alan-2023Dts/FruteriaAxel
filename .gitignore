@@ -1,2 +1,4 @@
 Fruteria/frontend/node_modules/
 Fruteria/frontend/*.zip
+Fruteria/frontend/.env
+Fruteria/frontend/dist/

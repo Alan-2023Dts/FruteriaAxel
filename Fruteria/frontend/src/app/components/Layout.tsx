@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
-import { Menu, Shield, IdCard, Calculator } from 'lucide-react';
+import { Shield, IdCard, Calculator, Home as HomeIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Layout = () => {
@@ -8,12 +8,12 @@ export const Layout = () => {
   const navigate = useNavigate();
 
   const navItems = [
+    { id: 'home', label: 'Inicio', icon: HomeIcon, path: '/' },
     { id: 'admin', label: 'Administración', icon: Shield, path: '/admin' },
     { id: 'employee', label: 'Actividades', icon: IdCard, path: '/employee' },
     { id: 'sales', label: 'Ventas', icon: Calculator, path: '/sales' },
   ];
 
-  const currentTab = navItems.find(item => item.path === location.pathname)?.id || 'home';
   const isSettingsPage = location.pathname === '/settings';
 
   return (
@@ -22,8 +22,12 @@ export const Layout = () => {
       {!isSettingsPage && (
         <header className="bg-[#001540] text-white px-4 py-4 flex items-center justify-between shadow-md z-10">
           <div className="flex items-center gap-4">
-            
-            <h1 className="text-xl font-bold tracking-tight">Frutería Axel</h1>
+            <h1 
+              onClick={() => navigate('/')}
+              className="text-xl font-bold tracking-tight cursor-pointer hover:text-white/80 active:scale-98 transition-all"
+            >
+              Frutería Axel
+            </h1>
           </div>
         </header>
       )}
@@ -45,7 +49,7 @@ export const Layout = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="bg-[#F0F2F9] border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-8">
+      <nav className="bg-[#F0F2F9] border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-8 shrink-0">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;

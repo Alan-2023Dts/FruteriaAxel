@@ -7,6 +7,9 @@ export const CATEGORIES: Array<'Todos' | ProductCategory> = [
   'Verduras',
   'Cítricos',
   'Temporada',
+  'Abarrotes',
+  'Lácteos',
+  'Otros',
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [

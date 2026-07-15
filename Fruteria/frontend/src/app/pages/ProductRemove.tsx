@@ -11,46 +11,12 @@ import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  unit: string;
-  image: string;
-}
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Manzana Roja',
-    category: 'Fruta',
-    price: 45.00,
-    unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1630563451961-ac2ff27616ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZWQlMjBhcHBsZSUyMGZydWl0JTIwc2luZ2xlfGVufDF8fHx8MTc4MjMyNTYwOXww&ixlib=rb-4.1.0&q=80&w=1080'
-  },
-  {
-    id: '2',
-    name: 'Plátano Tabasco',
-    category: 'Fruta',
-    price: 22.50,
-    unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYW5hbmElMjBidW5jaCUyMGZydWl0fGVufDF8fHx8MTc4MjMyNTYxMXww'
-  },
-  {
-    id: '3',
-    name: 'Brócoli Fresco',
-    category: 'Verdura',
-    price: 35.00,
-    unit: 'kg',
-    image: 'https://images.unsplash.com/photo-1685504445355-0e7bdf90d415?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxicm9jY29saSUyMHZlZ2V0YWJsZSUyMGZyZXNofGVufDF8fHx8MTc4MjMyNTYzMHww'
-  },
-];
+import { useFruteria } from '../stores/FruteriaProvider';
+import type { Product } from '../types/fruteria';
 
 export const ProductRemove = () => {
   const navigate = useNavigate();
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const { products, deleteProduct } = useFruteria();
   const [search, setSearch] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -64,7 +30,7 @@ export const ProductRemove = () => {
     
     setIsDeleting(true);
     setTimeout(() => {
-      setProducts(products.filter(p => p.id !== selectedProduct.id));
+      deleteProduct(selectedProduct.id);
       setIsDeleting(false);
       setSelectedProduct(null);
       toast.success('Producto eliminado correctamente');
